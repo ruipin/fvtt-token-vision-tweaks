@@ -11,6 +11,8 @@ Module for Foundry VTT that provides some tweaks for Token Vision, to allow trad
 
 * Allows setting the maximum token vision distance, regardless of illumination settings, both globally or per-scene. This can be used to e.g. limit view distance when Global Illumination is turned on, or improve performance on very large open maps by limiting how far away tokens need to render sight.
 
+* Allows changing the GM Fog of War behavior so that it is only updated by tokens where there is at least one non-GM player with 'Owner' or 'Observer' permissions.
+
 
 ## Installation
 1. Copy this link and use it in Foundry's Module Manager to install the Module

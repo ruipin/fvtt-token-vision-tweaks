@@ -2,7 +2,7 @@
 	"name": "token-vision-tweaks",
 	"title": "Token Vision Tweaks",
 	"description": "Provides some tweaks for Token Vision, to allow trading quality for performance, or vice-versa. Also provides a fix for a vision issue present in large open maps which may cause tokens to be able to see through distant walls.",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"author": "Rui Pinheiro",
 	"scripts": ["main.js"],
 	"minimumCoreVersion": "0.6.5",

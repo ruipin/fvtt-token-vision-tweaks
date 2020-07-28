@@ -50,6 +50,15 @@
 			hint: "Maximum token vision distance in grid units, regardless of illumination settings. This can be used to e.g. limit view distance when Global Illumination is turned on, or improve performance on very large open maps by limiting how far away tokens need to render sight. Disable this override with '0'.",
 			onChange: value => resetSight()
 		});
+
+		game.settings.register(MODULE_ID, 'fow-only-player-tokens', {
+			name: 'Only Player Tokens Update GM Fog of War',
+			default: false,
+			type: Boolean,
+			scope: 'world',
+			config: true,
+			hint: "If set, the GM Fog of War will only be updated by tokens where there is at least one non-GM player with 'Owner' or 'Observer' permissions. Default Foundry behaviour is that any token with vision updates the GM Fog of War, even NPCs."
+		});
 	});
 
 
@@ -154,6 +163,127 @@
 
 			// Call wrapped method
 			return computeSight.call(this, origin, radius, options);
+		};
+	})();
+
+
+
+	//---------------------------
+	// Do not update GM FoW for tokens not owned/observed by any player
+	Token.prototype.playerObservable = function() {
+		if(this.actor != null) {
+			if(this.actor.isPC)
+				return true;
+
+			let permissions = this.actor.data.permission;
+
+			for( let user_id in permissions ) {
+				if(user_id == "default" || user_id == game.user._id)
+					continue;
+
+				let user = game.users.find(u => {return u._id == user_id});
+
+				if(!user || user.isGM)
+					continue;
+
+				if(permissions[user_id] >= 3) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+	};
+
+
+	(function() {
+		let token = null;
+
+		SightLayer.prototype.updateToken = (function () {
+			const updateToken = SightLayer.prototype.updateToken;
+
+			return function () {
+				token = arguments[0];
+
+				let result = updateToken.apply(this, arguments);
+
+				token = null;
+
+				return result;
+			};
+		})();
+
+
+		SightLayer.prototype.updateFog = (function () {
+			const updateFog = SightLayer.prototype.updateFog;
+
+			return function () {
+				if(game.user.isGM && token != null && getSetting('fow-only-player-visible') && !token.playerObservable())
+					return;
+
+				return updateFog.apply(this, arguments);
+			};
+		})();
+	})();
+
+
+	SightLayer.prototype.update = (function () {
+		const update = SightLayer.prototype.update;
+
+		return function() {
+			// We can skip the hook for non-GMs
+			if(!game.user.isGM || !getSetting('fow-only-player-tokens'))
+				return update.apply(this, arguments);
+
+
+			// Swallow canvas.sight.fog.update.fov draws
+			let fogUpdates = this._fogUpdates;
+			this._fogUpdates = 0;
+
+			// Call original method
+			let result = update.apply(this, arguments);
+
+			// Restore fogUpdates
+			this._fogUpdates = fogUpdates;
+
+			// Manually do fog.update.fov / los draws
+			// See original implementation in SightLayer.update
+			if(!this.tokenVision || !this.sources.vision.size)
+				return result;
+
+			if(this._fogUpdates) {
+				let fog = this.fog.update;
+				let channels = this._channels;
+
+				for ( let sources of Object.values(this.sources) ) {
+					for ( let source of sources ) {
+						if(source[0].startsWith('Token.')) {
+							let token_id = source[0].slice(6);
+
+							let token = canvas.tokens.get(token_id);
+
+							if(!token || !token.playerObservable())
+								continue;
+						}
+
+						let s = source[1];
+
+						// Draw line of sight polygons
+						if (s.los)
+							fog.los.beginFill(0xFFFFFF, 1.0).drawPolygon(s.los).endFill();
+
+						// Draw fog exploration polygons
+						if((s.channels.dim + s.channels.bright) > 0)
+							fog.fov.beginFill(channels.explored.hex, 1.0).drawPolygon(s.fov).endFill();
+					}
+				}
+
+				if(this._fogUpdates >= 10)
+					this._commitFogUpdate();
+			}
+
+			// Done
+			return result;
 		};
 	})();
 })();
