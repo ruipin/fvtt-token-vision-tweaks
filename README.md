@@ -1,17 +1,19 @@
 # FVTT Token Vision Tweaks
-Module for Foundry VTT that provides some tweaks for Token Vision, to allow trading quality for performance, or vice-versa. Also provides a fix for a vision issue present in large open maps which may cause tokens to be able to see through distant walls.
+Module for Foundry VTT that provides some tweaks for Token Vision, to allow trading quality for performance, or vice-versa. Also provides a fix for a vision issue present in large open maps which may cause tokens to be able to see through distant walls, as well as a Fog-of-War memory leak.
 
 
 ## Features
 
 
-* Foundry VTT 0.6.5 (and likely 0.7.0) starts culling walls at 50 grid spaces distance from a token, no matter how far it can see. This seems to be a bug, and can cause vision to phase through walls on large open maps. Checking this option will disable this aggressive culling behavior, massively improving vision on such maps, though possibly at cost of performance.
+* Foundry VTT 0.6.5 (and likely 0.7.0) starts culling walls at 50 grid spaces distance from a token, no matter how far it can see. This seems to be a bug, and can cause vision to phase through walls on large open maps. This module provides a fix for this aggressive culling behavior, massively improving vision on such maps, though possibly at cost of performance.
 
 * Allows configuration of the ray cast density for Token sight, both globally or per-scene. This can be used to trade performance for quality, or vice-versa. For example, wide open maps with few walls might look better with a higher ray density, while small maps with lots of walls might perform better with a lower ray density without a noticeable quality change.
 
 * Allows setting the maximum token vision distance, regardless of illumination settings, both globally or per-scene. This can be used to e.g. limit view distance when Global Illumination is turned on, or improve performance on very large open maps by limiting how far away tokens need to render sight.
 
 * Allows changing the GM Fog of War behavior so that it is only updated by tokens where there is at least one non-GM player with 'Owner' or 'Observer' permissions.
+
+* Foundry VTT 0.6.5 and 0.7.0 have a memory leak bug involving fog of war, when 'updateToken' events are sent repeatedly without player's tokens exploring new regions of the map. In very particular cases, this can result in an Out-of-Memory crash. This module provides an optional hotfix that prevents this issue from occurring.
 
 
 ## Installation
