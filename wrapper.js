@@ -4,14 +4,15 @@
 'use strict';
 
 
-ResilientWrapper = (function() {
+(function() {
 	const MAJOR_VERSION = 0;
-	const MINOR_VERSION = 1;
-	const PATCH_VERSION = 1;
+	const MINOR_VERSION = 2;
+	const PATCH_VERSION = 3;
 	const VERSION = `${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}`;
 
 	// Get global scope
-	const glbl = window || global;
+	const isNode = (typeof module !== 'undefined' && module.exports);
+	const glbl = (typeof window !== "undefined") ? window : (typeof global !== "undefined") ? global : null;
 
 	if(!glbl)
 		throw `ResilientWrapper Library version ${VERSION} failed to initialize, unable to obtain global scope handle.`;
@@ -33,12 +34,27 @@ ResilientWrapper = (function() {
 		}
 	}
 	else {
-			console.log(`ResilientWrapper Library ${VERSION} loaded.`);
+		console.log(`ResilientWrapper Library ${VERSION} loaded.`);
 	}
 
 
 	// Internal class
 	let warnedPreReady = false;
+
+	class Handler {
+		constructor(fn) {
+			this.set(fn);
+
+			let _this = this;
+			this.fn = function() {
+				return _this._fn(this, ...arguments);
+			};
+		}
+
+		set(fn) {
+			this._fn = fn;
+		}
+	}
 
 	class ResilientWrapper {
 		// Versions
@@ -58,6 +74,10 @@ ResilientWrapper = (function() {
 			return VERSION;
 		}
 
+		static get debug() {
+			return false;
+		}
+
 
 		// Constructor
 		constructor (obj, methodName, ...methods) {
@@ -75,62 +95,76 @@ ResilientWrapper = (function() {
 			// Get wrapped value
 			let descriptor = Object.getOwnPropertyDescriptor(obj, methodName) || { value: undefined };
 
-			if(!descriptor) {
-				this.wrapped = undefined;
-			}
-			else if(descriptor.configurable === false) {
-				let wrapper = descriptor.get?.wrapper;
+			if(descriptor) {
+				if(descriptor.get?.wrapper) {
+					let wrapper = descriptor.get?.wrapper;
 
-				if(wrapper && wrapper.constructor == this.constructor) {
-					if(methods)
-						wrapper.push_back(...methods);
+					if(wrapper && wrapper instanceof this.constructor) {
+						if(methods)
+							wrapper.push_back(...methods);
 
-					return wrapper;
+						return wrapper;
+					}
 				}
 
-				throw `Method '${methodName}' cannot be wrapped, the corresponding descriptor has 'configurable=false'.`;
+
+				if(descriptor.configurable === false) {
+					throw `Method '${methodName}' cannot be wrapped, the corresponding descriptor has 'configurable=false'.`;
+				}
+				else {
+					if(descriptor.get)
+						throw `Wrapping a property ('${methodName}') with a getter/setter is currently not supported.`;
+					else
+						this.wrapped = descriptor.value;
+				}
 			}
 			else {
-				this.wrapped = descriptor;
+				this.wrapped = undefined;
 			}
 
-			this._wrap(obj);
+			if(this.debug)
+				console.debug(`ResilientWrapper ${VERSION} hooking `);
+
+			this._create_handler();
+			this._wrap();
 		}
 
-		_wrap(obj) {
+		_wrap() {
 			// Setup setter / getter
-			let _getter = null;
-			let _setter = null;
+			let getter = null;
+			let setter = null;
 
 			{
 				let _this = this;
-				_getter = function() {
-					return _this.get_wrapper(this, 0);
-				}
 
-				_setter = function(value) {
-					return _this.set_wrapper(this, value);
-				}
+				getter = function() {
+					return _this.handler.fn;
+				};
+
+				setter = function(value) {
+					return _this.set(value, this);
+				};
 			}
 
-			// We store 'this' inside the getter as a hack, so that multiple places can wrap the same method
-			_getter.wrapper = this;
+			// Store a reference to this in the getter so that we can support 'singleton'-like functionality
+			getter.wrapper = this;
 
-			// Define a property with configurable=false to avoid someone redefining it later
-			Object.defineProperty(obj, this.methodName, {
-				get: _getter,
-				set: _setter,
-				configurable: false
+			// Define a property with a getter/setter
+			Object.defineProperty(this.object, this.methodName, {
+				get: getter,
+				set: setter,
+				configurable: true
 			});
+		}
+
+		_create_handler() {
+			this.handler = new Handler(this.call_getter.bind(this, 0));
 		}
 
 
 		// Getter/setters
-		_get_parent_wrapper(obj) {
-			if(!obj)
-				return null;
-
-			let descriptor = Object.getOwnPropertyDescriptor(obj.constructor.prototype, this.methodName);
+		_get_parent_wrapper() {
+			let descriptor = Object.getOwnPropertyDescriptor(this.object.constructor.prototype, this.methodName);
 			let wrapper = descriptor?.get?.wrapper;
 
 			if(wrapper && wrapper != this)
@@ -139,53 +173,63 @@ ResilientWrapper = (function() {
 			return null;
 		}
 
-		get_wrapper(obj, index, return_descriptor=undefined) {
-			if(index < this.wrappers.length) {
+		get_wrapped(obj) {
+			// If 'obj' is not this.object, then we need to see if it has a local wrapper
+			if(obj && obj != this.object) {
+				let descriptor = Object.getOwnPropertyDescriptor(obj, this.methodName);
+
+				let wrapper = descriptor?.get?.wrapper;
+				if(wrapper)
+					return wrapper.get_wrapped(obj);
+			}
+
+			// Otherwise we just return our wrapped value
+			return this.wrapped;
+		}
+
+		get_getter(index, obj=null) {
+			if(index >= 0 && index < this.wrappers.length) {
 				let _method = this.wrappers[index];
-				let _next = this.call_wrapper.bind(this, obj, index+1, return_descriptor);
+				let _next = this.call_getter.bind(this, index+1, obj);
 
 				return function() {
 					return _method.call(obj, _next, ...arguments);
 				};
 			}
 
-			// Get the parent descriptor
-			let parent_wrapper = this._get_parent_wrapper(obj);
-
-			// Check for parent wrappers
+			// Call parent wrappers if they exist
+			let parent_wrapper = this._get_parent_wrapper();
 			if(parent_wrapper && parent_wrapper != this)
-				return parent_wrapper.get_wrapper(obj, 0, this.wrapped);
+				return parent_wrapper.get_getter(0, obj);
 
 			// Return wrapped value
-			if(return_descriptor === undefined)
-				return_descriptor = this.wrapped;
-
-			if(return_descriptor.get)
-				return return_descriptor.get();
-
-			if(return_descriptor.value === undefined && parent_descriptor)
-				return parent_descriptor.value;
-
-			return return_descriptor.value;
+			return this.get_wrapped(obj);
 		}
 
-		call_wrapper(obj, index, return_descriptor=undefined, ...args) {
-			return this.get_wrapper(obj, index, return_descriptor).apply(obj, args);
+		call_getter(index, obj, ...args) {
+			return this.get_getter(index, obj).apply(obj, args);
 		}
 
-		set_wrapper(obj, value) {
+		set(value, obj=null) {
 			// If assigning to an instance directly, create a wrapper for the instance
 			if(obj != this.object) {
 				let objWrapper = new this.constructor(obj, this.methodName);
-				objWrapper.set_wrapper(obj, value);
+				objWrapper.set(value, obj);
 				return;
 			}
 
-			// Otherwise store in the descriptor
-			if(this.wrapped.set)
-				this.wrapped.set(value);
-			else
-				this.wrapped.value = value;
+			// Redirect current handler to directly call the wrapped method
+			{
+				let wrapped = this.wrapped;
+
+				this.handler.set(function(obj, ...args) {
+					return wrapped.apply(obj, args);
+				});
+			}
+
+			// Wrap the new value and create a new handler
+			this.wrapped = value;
+			this._create_handler();
 		}
 
 
@@ -225,6 +269,10 @@ ResilientWrapper = (function() {
 		removeMethod(method) {
 			this.wrappers.remove(this.indexOf(method));
 		}
+
+		clear() {
+			this.wrappers = [];
+		}
 	};
 
 
@@ -232,8 +280,21 @@ ResilientWrapper = (function() {
 	Object.freeze(ResilientWrapper);
 
 
-	// Make library available in the global scope
-	glbl.ResilientWrapper = ResilientWrapper;
+	// Make library available in the global scope or export it for Node
+	if(isNode) {
+		module.exports = {
+			ResilientWrapper: ResilientWrapper
+		};
+	}
+	else {
+		// define as property so that it can't be as easily deleted
+		delete glbl.ResilientWrapper;
+		Object.defineProperty(glbl, 'ResilientWrapper', {
+			get: () => { return ResilientWrapper; },
+			set: (value) => {},
+			configurable: true
+		});
+	}
 
 
 	// Done
