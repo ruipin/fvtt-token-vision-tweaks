@@ -23,8 +23,12 @@ Module for Foundry VTT that provides some tweaks for Token Vision, to allow trad
 
 2. Enable the Module in your World's Module Settings
 
+### libWrapper
 
-### Examples
+This module uses the [libWrapper](https://github.com/ruipin/fvtt-lib-wrapper) library for wrapping core methods. While this is not a hard dependency, it is recommended to install it for the best experience and compatibility with other modules.
+
+
+## Examples
 
 ##### Default Foundry VTT 0.6.5
 ![Default](https://raw.githubusercontent.com/ruipin/fvtt-token-vision-tweaks/8ac463e6a6ac6b00a2e6cdac4f4a04090cfb65aa/vanilla.jpg)

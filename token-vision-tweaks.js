@@ -3,6 +3,8 @@
 
 'use strict';
 
+import {libWrapper} from './shim.js';
+
 Hooks.once('ready', () => {
 	const MODULE_NAME = "Token Vision Tweaks";
 	const MODULE_ID = "token-vision-tweaks";
@@ -101,14 +103,14 @@ Hooks.once('ready', () => {
 			$(`
 				<div class="form-group">
 					<label>${setting.name}</label>
-					<input type="text" name="${setting.key}" placeholder="${setting.type.name}" value="${value}" data-dtype="${setting.type.name}"/>
+					<input type="text" name="flags.${MODULE_ID}.${setting.key}" placeholder="${setting.type.name}" value="${value}" data-dtype="${setting.type.name}"/>
 					<p class="notes">${setting.hint} Leave empty to use value set in the ${MODULE_NAME} module settings.</p>
 				</div>
 			`).insertBefore(selector);
 		});
 	});
 
-	Hooks.on('preUpdateScene', (entity, diff, options, user_id) => {
+	/*Hooks.on('preUpdateScene', (entity, diff, options, user_id) => {
 		game.settings.settings.forEach(setting => {
 			if(setting.module != MODULE_ID)
 				return;
@@ -125,7 +127,7 @@ Hooks.once('ready', () => {
 
 			entity.setFlag(MODULE_ID, setting.key, value);
 		});
-	});
+	});*/
 
 
 	Hooks.on('updateScene', (entity, diff, options, user_id) => {
@@ -141,34 +143,32 @@ Hooks.once('ready', () => {
 
 	//---------------------------
 	// Hook the SightLayer computeSight method and implement the main module functionality
-	new ResilientWrapper(SightLayer, 'computeSight', (function () {
-		return function(computeSight, ...args) {
-			let options = args[2];
+	libWrapper.register(MODULE_ID, 'SightLayer.computeSight', function(computeSight, ...args) {
+		let options = args[2];
 
-			// Ray Density
-			let rayDensity = getSetting('ray-density');
+		// Ray Density
+		let rayDensity = getSetting('ray-density');
 
-			if(rayDensity && rayDensity > 0 && rayDensity != ORIGINAL_RAY_DENSITY)
-				options.density = rayDensity;
-
-
-			// Sight Radius
-			let maxRadius = (getSetting('max-radius') * canvas.dimensions.size) / canvas.dimensions.distance;
-
-			if(maxRadius && maxRadius > 0)
-				args[1] = Math.min(args[1], maxRadius);
+		if(rayDensity && rayDensity > 0 && rayDensity != ORIGINAL_RAY_DENSITY)
+			options.density = rayDensity;
 
 
-			// Disable aggressive wall culling
-			if(getSetting('fix-aggressive-wall-culling')) {
-				if('cullMin' in options)
-					options.cullMax = Math.max(options.cullMax, options.cullMin);
-			}
+		// Sight Radius
+		let maxRadius = (getSetting('max-radius') * canvas.dimensions.size) / canvas.dimensions.distance;
 
-			// Call wrapped method
-			return computeSight.apply(this, args);
-		};
-	})());
+		if(maxRadius && maxRadius > 0)
+			args[1] = Math.min(args[1], maxRadius);
+
+
+		// Disable aggressive wall culling
+		if(getSetting('fix-aggressive-wall-culling')) {
+			if('cullMin' in options)
+				options.cullMax = Math.max(options.cullMax, options.cullMin);
+		}
+
+		// Call wrapped method
+		return computeSight.apply(this, args);
+	}, 'WRAPPER');
 
 
 
@@ -203,7 +203,7 @@ Hooks.once('ready', () => {
 	(function() {
 		let token = null;
 
-		new ResilientWrapper(SightLayer.prototype, 'updateToken', function (wrapped, ...args) {
+		libWrapper.register(MODULE_ID, 'SightLayer.prototype.updateToken', function (wrapped, ...args) {
 			token = args[0];
 
 			let result = wrapped.apply(this, args);
@@ -211,9 +211,9 @@ Hooks.once('ready', () => {
 			token = null;
 
 			return result;
-		});
+		}, 'WRAPPER');
 
-		new ResilientWrapper(SightLayer.prototype, 'updateFog', function (wrapped, ...args) {
+		libWrapper.register(MODULE_ID, 'SightLayer.prototype.updateFog', function (wrapped, ...args) {
 			if(game.user.isGM && token != null && getSetting('fow-only-player-visible') && !token.playerObservable())
 				return;
 
@@ -222,7 +222,7 @@ Hooks.once('ready', () => {
 	})();
 
 
-	new ResilientWrapper(SightLayer.prototype, 'update', (function() {
+	libWrapper.register(MODULE_ID, 'SightLayer.prototype.update', (function() {
 		const MAX_UVS_LENGTH = 1000;
 
 		const hotfix_uv_lengths = function() {

@@ -1,3 +1,7 @@
+# 1.2.2 (2020-08-05)
+
+* Use libWrapper instead of a custom wrapper library.
+
 # 1.2.1 (2020-07-29)
 
 * Updated wrapper library, in order to improve compatibility with more modules.
