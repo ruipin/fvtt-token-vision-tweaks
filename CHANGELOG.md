@@ -1,3 +1,11 @@
+# 1.3.0 (2020-10-22)
+
+* Add support for Foundry 0.7.5.
+* Remove support for Foundry 0.6.x.
+* Remove options that applied only to 0.6.x and are no longer relevant for 0.7.5.
+* Add an option to change the Ray De-duplication Tolerance. This essentially replaces the "Aggressive Culling Fix" in the previous version of the module, and can be used to massively improve vision accuracy in large open maps.
+* Remove the option for GM Fog-of-War to only update when player-controlled tokens are moved. This option was useful, but would take a lot of effort to update for 0.7.5.
+
 # 1.2.2 (2020-08-05)
 
 * Use libWrapper instead of a custom wrapper library.
