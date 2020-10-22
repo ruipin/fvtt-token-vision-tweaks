@@ -11,6 +11,7 @@ Hooks.once('ready', () => {
 
 	const ORIGINAL_RAY_DENSITY = 6; // from SightLayer.computeSight
 	const ORIGINAL_RAY_DEDUP_TOLERANCE = 50; // from SightLayer._castRays
+	const ORIGINAL_EXACT_VISION_THRESHOLD = 500; // From SightLayer
 
 
 	console.log(`Loading ${MODULE_NAME} module...`);
@@ -53,6 +54,17 @@ Hooks.once('ready', () => {
 		scene: true,
 		config: true,
 		hint: "Maximum token vision distance in grid units, regardless of illumination settings. This can be used to e.g. limit view distance when Global Illumination is turned on, or improve performance on very large open maps by limiting how far away tokens need to render sight. Disable this override with '0'.",
+		onChange: value => resetSight()
+	});
+
+	game.settings.register(MODULE_ID, 'exact-vision-threshold', {
+		name: 'Exact Vision Threshold',
+		default: 0,
+		type: Number,
+		scope: 'world',
+		scene: true,
+		config: true,
+		hint: `The number of walls starting at which vision becomes approximate. The Foundry default is '${ORIGINAL_EXACT_VISION_THRESHOLD}'.  Higher is better, but also slower. Disable this override with '0'.`,
 		onChange: value => resetSight()
 	});
 
@@ -112,6 +124,12 @@ Hooks.once('ready', () => {
 	libWrapper.register(MODULE_ID, 'SightLayer.computeSight', function(computeSight, ...args) {
 		let options = args[2];
 
+		// Modify exact vision threshold if necessary
+		let exactVisionThreshold = getSetting('exact-vision-threshold');
+		let previousExactVisionThreshold = SightLayer.EXACT_VISION_THRESHOLD;
+		if(exactVisionThreshold != 0)
+			SightLayer.EXACT_VISION_THRESHOLD = exactVisionThreshold;
+
 		// Ray Density
 		let rayDensity = getSetting('ray-density');
 
@@ -126,7 +144,14 @@ Hooks.once('ready', () => {
 			args[1] = Math.min(args[1], maxRadius);
 
 		// Call wrapped method
-		return computeSight.apply(this, args);
+		const result = computeSight.apply(this, args);
+
+		// Restore old exact vision threshold
+		if(exactVisionThreshold != 0)
+			SightLayer.EXACT_VISION_THRESHOLD = previousExactVisionThreshold;
+
+		// Done
+		return result;
 	}, 'WRAPPER');
 
 
@@ -138,6 +163,7 @@ Hooks.once('ready', () => {
 		if(tol == 0)
 			return originalCastRays(...args);
 
+		// Grab the parameters
 		const x = args[0];
 		const y = args[1];
 		const distance = args[2];

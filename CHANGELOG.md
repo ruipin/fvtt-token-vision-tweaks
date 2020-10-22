@@ -1,3 +1,7 @@
+# 1.3.1 (2020-10-22)
+
+* Allow changing Foundry's 'Exact Vision Threshold'. Higher values give more accurate vision, at a cost of performance.
+
 # 1.3.0 (2020-10-22)
 
 * Add support for Foundry 0.7.5.
