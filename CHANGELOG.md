@@ -1,3 +1,8 @@
+# 1.3.2.0 (2021-05-24)
+
+* Update libWrapper shim to latest version.
+* Do nothing and warn user if running under Foundry 0.8 or newer.
+
 # 1.3.1.4 (2020-12-30)
 
 * No code changes.

@@ -2,7 +2,7 @@
 	"name": "token-vision-tweaks",
 	"title": "Token Vision Tweaks",
 	"description": "Provides some tweaks for Token Vision, to allow trading quality for performance, or vice-versa. Also provides a fix for a vision issue present in large open maps which may cause tokens to be able to see through distant walls, as well as a Fog-of-War memory leak.",
-	"version": "1.3.1.4",
+	"version": "1.3.2.0",
 	"author": "Rui Pinheiro",
 	"esmodules": ["token-vision-tweaks.js"],
 	"minimumCoreVersion": "0.7.5",

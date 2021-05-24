@@ -9,6 +9,21 @@ Hooks.once('ready', () => {
 	const MODULE_NAME = "Token Vision Tweaks";
 	const MODULE_ID = "token-vision-tweaks";
 
+	if(isNewerVersion(game.data.version, "0.7.x")) {
+		const MESSAGE = `
+			<p>'${MODULE_NAME}' is no longer needed in Foundry 0.8 or newer, as the issues it attempts to resolve have been fixed.</p>
+			<p><b>As a result, it will now disable itself.</b> If you do not plan on going back to Foundry 0.7, you should consider uninstalling it.</p>
+		`;
+		new Dialog({
+			title: MODULE_NAME,
+			content: MESSAGE, buttons: {
+				ok: { icon: '<i class="fas fa-check"></i>', label: 'Understood' }
+			}
+		}).render(true);
+		return;
+	}
+
+
 	const ORIGINAL_RAY_DENSITY = 6; // from SightLayer.computeSight
 	const ORIGINAL_RAY_DEDUP_TOLERANCE = 50; // from SightLayer._castRays
 	const ORIGINAL_EXACT_VISION_THRESHOLD = 500; // From SightLayer

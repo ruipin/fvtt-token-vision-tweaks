@@ -1,6 +1,8 @@
 # FVTT Token Vision Tweaks
 Module for Foundry VTT that provides some tweaks for Token Vision, to allow trading quality for performance, or vice-versa.
 
+⚠ This module is not needed if you're running Foundry 0.8 or newer.
+
 [![License](https://img.shields.io/github/license/ruipin/fvtt-token-vision-tweaks)](LICENSE)
 [![Build Release](https://github.com/ruipin/fvtt-token-vision-tweaks/workflows/Build%20Release/badge.svg)](https://github.com/ruipin/fvtt-token-vision-tweaks/releases/latest)
 [![Version (latest)](https://img.shields.io/github/v/release/ruipin/fvtt-token-vision-tweaks)](https://github.com/ruipin/fvtt-token-vision-tweaks/releases/latest)
